@@ -19,6 +19,8 @@ from numpy import array, exp, pi, arange, float64
 from random import choice
 from decimal import Decimal
 from Bio import SeqIO
+from timeit import timeit
+import pyximport 
 
 def seqtosymbols(seq, dints):
     length = len(seq)
@@ -95,21 +97,70 @@ def blockwise_bootstrap(seq, dints, block_size, num_reps):
     length = len(seq)
     result = seqtosymbols(seq, dints)
     signal = numpy.array(list(result))    
-    num_stats = 1
-    count = 0
-    test = ipdft(result, dints)
-    obs_stat = test.power()
+    obs_stat = ipdft(result, dints).power()
+    p_value = numpy.array([], dtype=float64)
     for period in range(len(obs_stat)):
+        count = 0
         for rep in range(num_reps):
             sampled_indices = sampled_places(block_size, length)
             new_signal = signal.take(sampled_indices)
-            tes = ipdft(new_signal,dints)
-            sim_stat = tes.power()
-            if num_stats > 1:
-                count[(sim_stat[period]) >= (obs_stat[period])] += 1
-            elif sim_stat[period] >= obs_stat[period]:
+            sim_stat = ipdft(new_signal,dints).power()
+            if sim_stat[period] >= obs_stat[period]:
                 count += 1
-        return count / num_reps
+        p_value= numpy.append(p_value,count / num_reps)
+    return p_value
 
-#a = ipdft("ATGTATTGCTAAAAATAGCAATAAATAGCATAATTAAGCTTATTTATTTT","GC")
-#developed for each period
+if __name__ == "__main__":    
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from itertools import combinations as ic
+    from Bio import SeqIO
+    import os
+    #sequence
+    seq = "ATGTATTGCTAAAAATAGCAATAAATAGCATAATTAAGCTTATTTATTTT"
+
+  
+    #dints
+    dints_list = [['AC','AG','CA','CG','CT','GT','TC','TG'],['AA','TT','AT','TA'],['CC','GG','CG','GC']]
+    dints_comb = []
+    index = 0
+    while index <= 1:
+        if index != 1:
+            for subset in ic(dints_list[index], 1):
+                dints_comb.append(list(subset))
+        index += 1 
+        for L in range(1,5):
+            for subset in ic(dints_list[index], L):
+                dints_comb.append(list(subset))
+    fasta_sequences = SeqIO.parse(open("enriched_seq.fa"),'fasta')
+
+    for fasta in fasta_sequences:
+        name, sequence = fasta.id, str(fasta.seq)
+        print(sequence)
+        filename = "/Users/hien/OneDrive - National University of Ireland, Galway/Documents/indu/fourier_transform/"+str(name)+"_FT"
+        os.mkdir(filename)
+        
+        for subset in dints_comb:
+        #convert sequence into symbols
+            a = seqtosymbols(str(sequence),subset)
+        
+        #get periods, powers, P_value with block_size 15 and num_reps 1000
+            b = ipdft(a,subset)
+            periods = b.period()
+            powers = b.power()
+            p_value = blockwise_bootstrap(str(sequence),subset,15,2)
+
+        #plots
+            plt.plot(periods[0:49],powers[0:49],linewidth = 2)
+            plt.plot(periods[0:49],p_value[0:49],linewidth = 2)
+            plt.title("ipdft "+str(subset))
+            plt.title(str(subset),fontsize = 18)
+            plt.yticks(np.arange(0,16, step=1))
+            plt.xticks(np.arange(0,51, step=5))
+            plt.xlabel('period', fontsize = 14)
+            plt.tick_params(labelsize = 14)
+            plt.legend(['signal power','p-value'],prop={'size': 12},loc=1, borderaxespad=0)
+            plt.grid()
+            my_path = os.path.abspath(filename)
+            plt.savefig(my_path+"/EMG{0}.png".format(subset))
+            plt.close()
