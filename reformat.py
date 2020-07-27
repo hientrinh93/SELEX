@@ -3,26 +3,25 @@ import sys
 import getopt
 def open_file(arg):                                         
     input_file=""                                          
-    output_file=""
     #parsing command line (structure)
     try:
-        a, b = getopt.getopt(arg,"h:i:",["input="]) 
+        a, b = getopt.getopt(arg,"hi:",["input="]) 
     except getopt.GetoptError:                              
-        print ("file_name.py <input_file>")
+        print ("reformat.py <input_file>")
         sys.exit(2)                                         
     #input file
     for option,value in a:
         if option == "-h":
-            print ("file_name.py <input_file> <output_file>")
-            sys.exit()
+            print ("reformat.py <input_file> <output_file>")
+            sys.exit(2)
         elif option in ("-i","--input"):
             input_file = value
 
 
 if __name__ == "__main__":
-    open_file(sys.argv[0:])
-    f = open(sys.argv[1],"r")
-    g = open(str(sys.argv[1])+".final.bed","w")
+    open_file(sys.argv[1:])
+    f = open(sys.argv[2],"r")
+    g = open(str(sys.argv[2])+".final.bed","w")
     read_name, pos1, pos2, pos3, pos5 = ([] for i in range(5))
     for line in f:
         col = line.split("\t")
