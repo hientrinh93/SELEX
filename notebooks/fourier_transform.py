@@ -20,7 +20,7 @@ from random import choice
 from decimal import Decimal
 from Bio import SeqIO
 from timeit import timeit
-import pyximport 
+
 
 def seqtosymbols(seq, dints):
     length = len(seq)
